@@ -29,9 +29,7 @@ import logging
 import os
 from pathlib import Path
 import sys
-sys.path.append("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/icefall")
-sys.path.append("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/valle")
-
+sys.path.append("/bv4/Triton_server/audio_to_video/valle/v1/vallemodel/icefall")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -114,7 +112,7 @@ def get_args():
 
 
 @torch.no_grad()
-def main():
+def func(input_1,input_2,input_3):
     args = get_args()
     text_tokenizer = TextTokenizer()
     text_collater = get_text_token_collater(args.text_tokens)
@@ -139,11 +137,14 @@ def main():
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
-    text_prompts = " ".join(args.text_prompts.split("|"))
+    ##text_prompts = " ".join(args.text_prompts.split("|"))
+    text_prompts = " ".join(input_1.split("|"))
 
     audio_prompts = []
-    if args.audio_prompts:
-        for n, audio_file in enumerate(args.audio_prompts.split("|")):
+    ##if args.audio_prompts:
+    if input_2:
+        ##for n, audio_file in enumerate(args.audio_prompts.split("|")):
+        for n, audio_file in enumerate(input_2.split("|")):
             encoded_frames = tokenize_audio(audio_tokenizer, audio_file)
             if False:
                 samples = audio_tokenizer.decode(encoded_frames)
@@ -153,11 +154,13 @@ def main():
 
             audio_prompts.append(encoded_frames[0][0])
 
-        assert len(args.text_prompts.split("|")) == len(audio_prompts)
+        ##assert len(args.text_prompts.split("|")) == len(audio_prompts)
+        assert len(input_1.split("|")) == len(audio_prompts)
         audio_prompts = torch.concat(audio_prompts, dim=-1).transpose(2, 1)
         audio_prompts = audio_prompts.to(device)
 
-    for n, text in enumerate(args.text.split("|")):
+    ##for n, text in enumerate(args.text.split("|")):
+    for n, text in enumerate(input_3.split("|")):
         logging.info(f"synthesize text: {text}")
         text_tokens, text_tokens_lens = text_collater(
             [
@@ -168,24 +171,31 @@ def main():
         )
 
         # synthesis
+        ##encoded_frames = model.inference(
+        ##    text_tokens.to(device),
+        ##    text_tokens_lens.to(device),
+        ##    audio_prompts,
+        ##    top_k=args.top_k,
+        ##    temperature=args.temperature,
+        ##)
         encoded_frames = model.inference(
             text_tokens.to(device),
             text_tokens_lens.to(device),
             audio_prompts,
-            top_k=args.top_k,
-            temperature=args.temperature,
+            top_k=-100,
+            temperature=1,
         )
-
-        if audio_prompts != []:
-            samples = audio_tokenizer.decode(
-                [(encoded_frames.transpose(2, 1), None)]
-            )
+        samples = audio_tokenizer.decode([(encoded_frames.transpose(2, 1), None)])
+        ##if audio_prompts != []:
+        ##    samples = audio_tokenizer.decode(
+        ##        [(encoded_frames.transpose(2, 1), None)]
+        ##    )
             # store
-            torchaudio.save(
-                f"{args.output_dir}/{n}.wav", samples[0].cpu(), 24000
-            )
-        else:  # Transformer
-            model.visualize(encoded_frames, args.output_dir)
+        ##    torchaudio.save(
+        ##        f"{args.output_dir}/{n}.wav", samples[0].cpu(), 24000
+        ##    )
+        ##else:  # Transformer
+        ##    model.visualize(encoded_frames, args.output_dir)
 
 
 torch.set_num_threads(1)
@@ -193,9 +203,11 @@ torch.set_num_interop_threads(1)
 torch._C._jit_set_profiling_executor(False)
 torch._C._jit_set_profiling_mode(False)
 torch._C._set_graph_executor_optimize(False)
-if __name__ == "__main__":
-    formatter = (
-        "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
-    )
-    logging.basicConfig(format=formatter, level=logging.INFO)
-    main()
+
+class Inference_Valle:
+    def infer_valle(self,input_1,input_2,input_3):
+        formatter = (
+            "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
+        )
+        logging.basicConfig(format=formatter, level=logging.INFO)
+        func(input_1,input_2,input_3)
