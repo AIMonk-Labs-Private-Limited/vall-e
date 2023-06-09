@@ -29,7 +29,7 @@ import logging
 import os
 from pathlib import Path
 import sys
-sys.path.append("/bv4/Triton_server/audio_to_video/valle/v1/vallemodel/icefall")
+##sys.path.append("/bv4/Triton_server/audio_to_video/valle/v1/vallemodel/icefall")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context

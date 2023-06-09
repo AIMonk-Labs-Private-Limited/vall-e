@@ -29,8 +29,8 @@ import logging
 import os
 from pathlib import Path
 import sys
-sys.path.append("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/icefall")
-sys.path.append("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/valle")
+##sys.path.append("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/icefall")
+##sys.path.append("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/valle")
 
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import ssl

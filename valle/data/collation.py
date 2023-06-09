@@ -49,7 +49,10 @@ class TextTokenCollater:
             + ([eos_symbol] if add_eos else [])
             + sorted(text_tokens)
         )
-
+        print(len(unique_tokens))
+        ##print(unique_tokens.encode('utf-8'))
+        for uqtk in unique_tokens:
+            print(uqtk.encode('utf-8'))
         self.token2idx = {token: idx for idx, token in enumerate(unique_tokens)}
         self.idx2token = [token for token in unique_tokens]
 
@@ -85,7 +88,10 @@ class TextTokenCollater:
         return tokens, tokens_lens
 
     def __call__(self, texts: List[str]) -> Tuple[torch.Tensor, torch.Tensor]:
+        ##print(texts)
         tokens_seqs = [[p for p in text] for text in texts]
+        print(len(tokens_seqs))
+        print(tokens_seqs[0][2].encode('utf-8'))
         max_len = len(max(tokens_seqs, key=len))
 
         seqs = [
@@ -95,7 +101,8 @@ class TextTokenCollater:
             + [self.pad_symbol] * (max_len - len(seq))
             for seq in tokens_seqs
         ]
-
+        print(len(seqs))
+        ##print(self.token2idx)
         tokens_batch = torch.from_numpy(
             np.array(
                 [[self.token2idx[token] for token in seq] for seq in seqs],

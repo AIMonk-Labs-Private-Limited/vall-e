@@ -29,7 +29,7 @@ import logging
 import os
 from pathlib import Path
 import sys
-sys.path.append("/bv4/Triton_server/audio_to_video/valle/v1/vallemodel/icefall")
+##sys.path.append("models/VALLE/1/vallemodel/icefall")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -44,8 +44,20 @@ from valle.data import (
 )
 from valle.data.collation import get_text_token_collater
 from valle.models import add_model_arguments, get_model
+import base64
 
-'''
+def wav_to_base64(file_path):
+    with open(file_path, "rb") as wav_file:
+        wav_data = wav_file.read()
+        base64_data = base64.b64encode(wav_data).decode("utf-8")
+        return base64_data
+
+def base64_to_wav(base64_string, output_path):
+    wav_data = base64.b64decode(base64_string.encode("utf-8"))
+    with open(output_path, "wb") as wav_file:
+        wav_file.write(wav_data)
+
+
 def get_args():
     parser = argparse.ArgumentParser()
 
@@ -109,8 +121,8 @@ def get_args():
     )
 
     return parser.parse_args()
-'''
 
+'''
 @torch.no_grad()
 def func(input_1,input_2,input_3):
     ##args = get_args()
@@ -139,13 +151,13 @@ def func(input_1,input_2,input_3):
     output_dir="output/"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    ##text_prompts = " ".join(args.text_prompts.split("|"))
+    
     text_prompts = " ".join(input_1.split("|"))
 
     audio_prompts = []
-    ##if args.audio_prompts:
+    
     if input_2:
-        ##for n, audio_file in enumerate(args.audio_prompts.split("|")):
+        
         for n, audio_file in enumerate(input_2.split("|")):
             encoded_frames = tokenize_audio(audio_tokenizer, audio_file)
             if False:
@@ -161,7 +173,7 @@ def func(input_1,input_2,input_3):
         audio_prompts = torch.concat(audio_prompts, dim=-1).transpose(2, 1)
         audio_prompts = audio_prompts.to(device)
 
-    ##for n, text in enumerate(args.text.split("|")):
+    
     for n, text in enumerate(input_3.split("|")):
         logging.info(f"synthesize text: {text}")
         text_tokens, text_tokens_lens = text_collater(
@@ -172,14 +184,7 @@ def func(input_1,input_2,input_3):
             ]
         )
 
-        # synthesis
-        ##encoded_frames = model.inference(
-        ##    text_tokens.to(device),
-        ##    text_tokens_lens.to(device),
-        ##    audio_prompts,
-        ##    top_k=args.top_k,
-        ##    temperature=args.temperature,
-        ##)
+       
         encoded_frames = model.inference(
             text_tokens.to(device),
             text_tokens_lens.to(device),
@@ -189,17 +194,20 @@ def func(input_1,input_2,input_3):
         )
         samples = audio_tokenizer.decode([(encoded_frames.transpose(2, 1), None)])
         return samples
-        ##if audio_prompts != []:
-        ##    samples = audio_tokenizer.decode(
-        ##        [(encoded_frames.transpose(2, 1), None)]
-        ##    )
-            # store
-        ##    torchaudio.save(
-        ##        f"{args.output_dir}/{n}.wav", samples[0].cpu(), 24000
-        ##    )
-        ##else:  # Transformer
-        ##    model.visualize(encoded_frames, args.output_dir)
+        
+'''
 
+def preprocess(s):
+    
+    s=s.strip()
+    if s[-1]==".":
+        s=s[:-1]
+    a=s.split(".")
+    for i in range(len(a)):
+        a[i]=a[i].strip()
+    ans=" | ".join(a)
+    
+    return ans
 
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)
@@ -208,10 +216,106 @@ torch._C._jit_set_profiling_mode(False)
 torch._C._set_graph_executor_optimize(False)
 
 class Inference_Valle:
-    def infer_valle(self,input_1,input_2,input_3):
-        formatter = (
-            "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
-        )
-        logging.basicConfig(format=formatter, level=logging.INFO)
-        valle_audio=func(input_1,input_2,input_3)
-        return valle_audio
+    
+    def __init__(self):
+        args = get_args()
+        self.text_tokenizer = TextTokenizer()
+        self.text_tokens="models/VALLE/1/vallemodel/valle/egs/libritts/data/tokenized/unique_text_tokens.k2symbols"
+        self.text_collater = get_text_token_collater(self.text_tokens)
+        self.audio_tokenizer = AudioTokenizer()
+        self.device = torch.device("cpu")
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda", 0)
+        self.model = get_model(args)
+        self.checkpoint="models/VALLE/1/checkpoints/epoch-100.pt"
+        if self.checkpoint:
+            self.checkpoint = torch.load(self.checkpoint, map_location=self.device)
+            self.missing_keys, self.unexpected_keys = self.model.load_state_dict(
+                self.checkpoint["model"], strict=True
+            )
+            assert not self.missing_keys
+        self.model.to(self.device)
+        self.model.eval()
+        self.output_dir="output/"
+        Path(self.output_dir).mkdir(parents=True, exist_ok=True)
+        print("Done")
+        
+        
+        
+    def predict(self,input_1,input_2,input_3):
+        ##formatter = (
+        ##    "%(asctime)s %(levelname)s [%(filename)s:%(lineno)d] %(message)s"
+        ##)
+        ##logging.basicConfig(format=formatter, level=logging.INFO)
+        ##valle_audio=func(input_1,input_2,input_3)
+        
+        ##for debug hardcode
+        ##input_1="This I read with great attention, while they sat silent."
+        ##input_3="This I read with great attention, while they sat silent."
+        file_1 = open(input_1, "r")
+        input_1=file_1.read().split("\n")[0]
+        file_1.close()
+        print(type(input_1))
+        file_3 = open(input_3, "r")
+        input_3=file_3.read().split("\n")[0]
+        print(type(input_3))
+        print("input_3")
+        file_3.close()
+        
+        text_prompts = " ".join(input_1.split("|"))
+        audio_prompts = []
+        if input_2:
+            for n, audio_file in enumerate(input_2.split("|")):
+                print("audio_file---->",audio_file)
+                encoded_frames = tokenize_audio(self.audio_tokenizer, audio_file)
+                if False:
+                    samples = audio_tokenizer.decode(encoded_frames)
+                    torchaudio.save(
+                        f"{args.output_dir}/p{n}.wav", samples[0], 24000
+                    )
+                audio_prompts.append(encoded_frames[0][0])
+            assert len(input_1.split("|")) == len(audio_prompts)
+            audio_prompts = torch.concat(audio_prompts, dim=-1).transpose(2, 1)
+            audio_prompts = audio_prompts.to(self.device)
+            print(audio_prompts.shape)
+            print(input_3)
+            input_3=preprocess(input_3)
+            for n, text in enumerate(input_3.split("|")):
+                print("no of loop done ",n)
+                logging.info(f"synthesize text: {text}")
+                text_tokens, text_tokens_lens = self.text_collater(
+                    [
+                        tokenize_text(
+                            self.text_tokenizer, text=f"{text_prompts} {text}".strip()
+                        )
+                    ]
+                )
+
+                encoded_frames = self.model.inference(
+                    text_tokens.to(self.device),
+                    text_tokens_lens.to(self.device),
+                    audio_prompts,
+                    top_k=-100,
+                    temperature=1
+                )
+                samples = self.audio_tokenizer.decode([(encoded_frames.transpose(2, 1), None)])
+                print(samples.shape)
+                ##if audio_prompts != []:
+                ##    print("yes")
+                    ##samples = audio_tokenizer.decode(
+                    ##    [(encoded_frames.transpose(2, 1), None)]
+                    ##    )
+                ##    print(samples.shape)
+                    # store
+                ##torchaudio.save("/bv4/Triton_server/audio_to_video/valle/models/VALLE/1/vallemodel/valle/egs/libritts/trial_output.wav", samples[0].cpu(), 24000)
+                os.makedirs("models/VALLE/1/vallemodel/tmp_audio_folder",exist_ok=True)
+                torchaudio.save("models/VALLE/1/vallemodel/tmp_audio_folder/"+str(n)+".wav", samples[0].cpu(), 24000)
+
+                print("yes")
+                
+        return samples
+                
+            
+                
+        
+        ###return valle_audio
